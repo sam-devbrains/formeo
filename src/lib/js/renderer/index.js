@@ -226,8 +226,9 @@ export default class FormeoRenderer {
       }
 
       const mergedFieldData = merge({ action }, field)
+      const cached = this.cacheComponent({ ...mergedFieldData, id: this.prefixId(id) })
 
-      return this.cacheComponent({ ...mergedFieldData, id: this.prefixId(id) })
+      return cached
     })
 
   get processedData() {
@@ -262,6 +263,10 @@ export default class FormeoRenderer {
             for (const thenCondition of thenConditions) {
               this.execResult(thenCondition, evt)
             }
+          } else {
+            for (const thenCondition of thenConditions) {
+              this.execResult(thenCondition, evt, true) // Pass true to execute opposite action
+            }
           }
         },
         false
@@ -270,15 +275,21 @@ export default class FormeoRenderer {
 
     // Evaluate conditions on load.
     const fakeEvt = { target: component }
-    if (this.evaluateCondition(ifRest, fakeEvt)) {
+    const result = this.evaluateCondition(ifRest, fakeEvt)
+    if (result) {
       for (const thenCondition of thenConditions) {
         this.execResult(thenCondition, fakeEvt)
+      }
+    } else {
+      for (const thenCondition of thenConditions) {
+        this.execResult(thenCondition, fakeEvt, true) // Pass true to execute opposite action
       }
     }
   }
 
   applyConditions = () => {
-    for (const { conditions } of Object.values(this.components)) {
+    for (const [componentId, componentData] of Object.entries(this.components)) {
+      const { conditions } = componentData
       if (conditions) {
         for (const condition of conditions) {
           const { if: ifConditions, then: thenConditions } = condition
@@ -289,13 +300,17 @@ export default class FormeoRenderer {
             if (isAddress(source)) {
               const { component, options } = this.getComponent(source)
               const sourceComponent = options || component
-              this.handleComponentCondition(sourceComponent, ifCondition, thenConditions)
+              if (sourceComponent) {
+                this.handleComponentCondition(sourceComponent, ifCondition, thenConditions)
+              }
             }
 
             if (isAddress(target)) {
               const { component, options } = this.getComponent(target)
               const targetComponent = options || component
-              this.handleComponentCondition(targetComponent, ifCondition, thenConditions)
+              if (targetComponent) {
+                this.handleComponentCondition(targetComponent, ifCondition, thenConditions)
+              }
             }
           }
         }
@@ -316,23 +331,49 @@ export default class FormeoRenderer {
 
     const targetValue = String(isAddress(target) ? this.getComponentProperty(target, targetProperty) : target)
 
-    return comparisonMap[comparison]?.(sourceValue, targetValue)
+    const result = comparisonMap[comparison]?.(sourceValue, targetValue)
+    return result
   }
 
-  execResult = ({ target, targetProperty, assignment, value }) => {
+  execResult = ({ target, targetProperty, assignment, value }, _evt, executeOpposite = false) => {
     if (isAddress(target)) {
       const { component, option } = this.getComponent(target)
 
       const elem = option || component
 
-      targetPropertyMap[targetProperty]?.(elem, { targetProperty, assignment, value })
+      // Map opposite actions for visibility toggles
+      const oppositePropertyMap = {
+        isVisible: 'isNotVisible',
+        isNotVisible: 'isVisible',
+        isChecked: 'isNotChecked',
+        isNotChecked: 'isChecked',
+      }
+
+      const effectiveProperty =
+        executeOpposite && oppositePropertyMap[targetProperty] ? oppositePropertyMap[targetProperty] : targetProperty
+
+      if (elem && targetPropertyMap[effectiveProperty]) {
+        targetPropertyMap[effectiveProperty](elem, { targetProperty: effectiveProperty, assignment, value })
+      }
     }
   }
 
   getComponentProperty = (address, propertyName) => {
-    const { component, option } = this.getComponent(address)
+    const { component, option, options } = this.getComponent(address)
 
     const elem = option || component
+
+    // For radio/checkbox groups, get the value of the checked item
+    if (propertyName === 'value' && options && options.length > 0 && !option) {
+      const checkedOption = Array.from(options).find(opt => opt.checked)
+      return checkedOption?.value || ''
+    }
+
+    // If we have a specific option (from address like fields.x.options[1]) and no property name,
+    // return the value of that option
+    if (option && (!propertyName || propertyName === '')) {
+      return option.value
+    }
 
     return propertyMap[propertyName]?.(elem) || elem[propertyName]
   }
@@ -361,6 +402,14 @@ export default class FormeoRenderer {
       result.option = option
 
       return result
+    }
+
+    // For radio/checkbox groups, we need to return the actual inputs, not the container
+    // Check if this is a container with input elements (radio/checkbox group)
+    const inputs = component.querySelectorAll('input[type="radio"], input[type="checkbox"]')
+    if (inputs.length > 0) {
+      result.options = inputs
+      result.component = inputs[0] // Return first input for type detection
     }
 
     return result

@@ -115,16 +115,20 @@
 @mixin field-control {
   cursor: move;
   list-style: none;
-  margin: -1px 0 0;
-  border: 1px solid color.$gray-lighter;
-  text-align: left;
+  margin: 0;
+  border: 1px solid sass-color.adjust(color.$gray-lighter, $lightness: 2%);
+  border-radius: calc(var.$border-radius * 1.5);
+  text-align: center;
   background: color.$white;
   user-select: none;
   overflow: hidden;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
 
   &.control-moving {
-    border-radius: var.$border-radius;
     animation: DRAG_GHOST 500ms forwards;
+    // Disable transition during drag to prevent lag
+    transition: none !important;
   }
 
   &::before {
@@ -133,27 +137,37 @@
   }
 
   &:hover {
-    background-color: sass-color.adjust(color.$white, $lightness: -5%);
+    background-color: color.$white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+    border-color: sass-color.adjust(color.$gray-lighter, $lightness: -5%);
   }
 
   button {
     box-sizing: border-box;
-    font-size: 1em;
-    line-height: 1.8em;
+    font-size: 0.9em;
+    line-height: 1.3;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: space(0.75);
+    min-height: 130px;
+    aspect-ratio: 1 / 1;
     height: 100%;
     width: 100%;
     background: transparent;
     border: 0 none;
-    text-align: left;
-    padding: space(1);
-    border-radius: 0;
+    text-align: center;
+    padding: space(2) space(1);
+    border-radius: calc(var.$border-radius * 1.5);
+    cursor: move;
 
     &:focus {
       outline: 0 none;
-      background-color: sass-color.adjust(color.$white, $lightness: -5%);
-      box-shadow: 0 0 0 1px color.$input-focus inset;
-      border-radius: 0 !important;
+      background-color: sass-color.adjust(color.$white, $lightness: -2%);
+      box-shadow: 0 0 0 2px color.$input-focus inset;
+      border-radius: calc(var.$border-radius * 1.5) !important;
     }
 
     &:active {
@@ -166,23 +180,39 @@
   }
 
   .control-icon {
-    margin-right: space(1);
+    margin-right: 0;
+    margin-bottom: space(0.5);
     text-align: center;
-    width: var.$icon-size;
-    height: var.$icon-size;
+    width: calc(var.$icon-size * 2.2);
+    height: calc(var.$icon-size * 2.2);
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+
+    svg {
+      width: 100%;
+      height: 100%;
+      opacity: 0.9;
+    }
+  }
+
+  .control-label {
+    font-weight: 500;
+    color: sass-color.adjust(color.$gray-dark, $lightness: -10%);
+    font-size: 0.9em;
+    line-height: 1.3;
+    word-break: break-word;
   }
 
   [dir="rtl"] & {
     button {
-      text-align: right !important;
+      text-align: center !important;
     }
 
     svg {
-      float: right !important;
-      margin: 0 0 0 space(1) !important;
+      float: none !important;
+      margin: 0 !important;
     }
   }
 }
@@ -261,4 +291,126 @@
   overflow: hidden;
   box-shadow: none;
   margin: 0;
+}
+
+@mixin custom-checkbox {
+  $checkbox-size: 16px;
+  $checkbox-border-radius: 3px;
+
+  input[type='checkbox'] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: $checkbox-size !important;
+    height: $checkbox-size !important;
+    min-width: $checkbox-size;
+    min-height: $checkbox-size;
+    max-width: $checkbox-size;
+    max-height: $checkbox-size;
+    aspect-ratio: 1 / 1;
+    border: 1.5px solid var(--checkbox-border-color, #E5E7EB);
+    border-radius: $checkbox-border-radius;
+    background-color: var(--checkbox-bg, #fff);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease-in-out;
+    margin: 0;
+    padding: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+
+    &::after {
+      content: '';
+      position: absolute;
+      display: none;
+      left: 50%;
+      top: 45%;
+      width: 3px;
+      height: 6px;
+      border: solid #fff;
+      border-width: 0 1.5px 1.5px 0;
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+
+    &:checked {
+      background-color: var(--checkbox-checked-bg, #975DAA);
+      border-color: var(--checkbox-checked-border, #975DAA);
+
+      &::after {
+        display: block;
+      }
+    }
+
+    &:hover:not(:checked) {
+      border-color: var(--checkbox-hover-border, #868FA0);
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--checkbox-focus-shadow, rgba(151, 93, 170, 0.25));
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  input[type='radio'] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: $checkbox-size !important;
+    height: $checkbox-size !important;
+    min-width: $checkbox-size;
+    min-height: $checkbox-size;
+    max-width: $checkbox-size;
+    max-height: $checkbox-size;
+    aspect-ratio: 1 / 1;
+    border: 1.5px solid var(--radio-border-color, #E5E7EB);
+    border-radius: 50%;
+    background-color: var(--radio-bg, #fff);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease-in-out;
+    margin: 0;
+    padding: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
+
+    &::after {
+      content: '';
+      position: absolute;
+      display: none;
+      left: 50%;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      background-color: #000;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    &:checked {
+      border-color: var(--radio-checked-border, #000);
+
+      &::after {
+        display: block;
+      }
+    }
+
+    &:hover:not(:checked) {
+      border-color: var(--radio-hover-border, #868FA0);
+    }
+
+    &:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--radio-focus-shadow, rgba(0, 0, 0, 0.15));
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
 }
